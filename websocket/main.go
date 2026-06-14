@@ -26,8 +26,6 @@ func main() {
 	flag.Parse()
 	hub := NewHub()
 	go hub.run()
-	fs := http.FileServer(http.Dir("../public"))
-	http.Handle("/", fs)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
 	})

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"local/websocket/serial"
 	"log"
 	"net/http"
 	"time"
@@ -32,6 +33,9 @@ var (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
 }
 
 // Client is a middleman between the websocket connection and the hub.
@@ -74,13 +78,24 @@ func (c *Client) readPump() {
 }
 
 func (c *Client) testMessage() {
-	newtime := time.Now()
-	fmt.Println(newtime.UnixMicro())
 	for {
+		newtime := time.Now()
 		timeout := newtime.UTC().Format("Mon Jan 2 15:04:05 2006")
 		message := fmt.Sprintf("time: %s", timeout)
 		c.hub.broadcast <- []byte(message)
 		time.Sleep(time.Second)
+	}
+}
+
+func (c *Client) getCoordinates() {
+	// ir := serial.IRSensor{}
+
+	for {
+		serial.GetOutput(c.hub.broadcast)
+		// fmt.Println("coord message: ", ir.One)
+		// message := fmt.Sprintf("Coordinate 1: x:%s y:%s", ir.One.XCoord, ir.One.YCoord)
+		// c.hub.broadcast <- []byte(message)
+		// time.Sleep(time.Second)
 	}
 }
 
@@ -110,12 +125,12 @@ func (c *Client) writePump() {
 				return
 			}
 			w.Write(message)
-			fmt.Println("message", message)
+			// fmt.Println("message", message)
 			// Add queued chat messages to the current websocket message.
 			n := len(c.send)
 			for i := 0; i < n; i++ {
 				w.Write(newline)
-				fmt.Println("output", c.send)
+				// fmt.Println("output", c.send)
 				w.Write(<-c.send)
 			}
 
@@ -141,9 +156,10 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
 	client.hub.register <- client
 
+	fmt.Println("Server is listening")
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
 	go client.writePump()
 	go client.readPump()
-	go client.testMessage()
+	go client.getCoordinates()
 }
