@@ -1,3 +1,4 @@
+// running in vue.js now
 window.onload = function () {
     var conn;
     var msg = document.getElementById("msg");
